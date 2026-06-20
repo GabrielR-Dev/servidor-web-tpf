@@ -70,6 +70,35 @@ while (true)
         ruta = "/index.html";
     }
     string version = partesReq[2];
+    string queryString = "";
+
+    /*Separar los query param*/
+    if (ruta.Contains("?"))
+    {
+        string[] partesUrl = ruta.Split('?', 2);
+        ruta = partesUrl[0];
+        queryString = partesUrl[1];
+    }
+
+    /*Log de los query param*/
+    if(!string.IsNullOrEmpty(queryString))
+    {
+        string[] parametros = queryString.Split('&');
+        foreach (string par in parametros)
+        {
+            string[] parametro = par.Split('=');
+
+            if (parametro.Length == 2)
+            {
+                Console.WriteLine($"Parámetro: {parametro[0]} | Valor: {parametro[1]}");
+            }
+            else
+            {
+                Console.WriteLine($"Parámetro: {parametro[0]} | Valor: ");
+            }
+
+        }
+    }
 
 
     /*Loggin del POST*/
