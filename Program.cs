@@ -8,7 +8,7 @@ using System.Net.Sockets;
 string[] lineasConfig = File.ReadAllLines("config.txt");
 
 int puerto = 0;
-string carpeta = "";
+string carpetaArchivos = "";
 
 foreach (string linea in lineasConfig)
 {
@@ -19,7 +19,7 @@ foreach (string linea in lineasConfig)
     }
     else if (partes[0] == "ROOT")
     {
-        carpeta = partes[1];
+        carpetaArchivos = partes[1];
     }
 }
 
@@ -40,7 +40,7 @@ servidor.Listen(5);
 Console.WriteLine("El servidor está escuchando el puerto {0}", puerto);
 
 
-/*Creación de sockets para los clientes*/
+/*Creación de sockets para los clientes + Envio de respuesta*/
 while (true)
 {
     Console.WriteLine("Esperando un cliente...");
@@ -49,32 +49,129 @@ while (true)
 
     Console.WriteLine("Se conectó un cliente.");
 
+
     /*Creación del buffer*/
     byte[] buffer = new byte[2500];
     int bytesRecibidos = cliente.Receive(buffer);
     string request = Encoding.UTF8.GetString(buffer, 0, bytesRecibidos);
-    /*Console.WriteLine(request);*/
     
+
     /*Parsear el request*/
     string[] lineasReq = request.Split("\r\n");
     string primerLinea = lineasReq[0];
-    Console.WriteLine(primerLinea);
 
+
+    /*Guardando datos del request*/
     string[] partesReq = primerLinea.Split(" ");
     string metodo = partesReq[0];
     string ruta = partesReq[1];
+    if (ruta == "/")
+    {
+        ruta = "/index.html";
+    }
     string version = partesReq[2];
 
 
-    /*Enviar respuesta*/
-    string respuesta =
-    "HTTP/1.1 200 OK\r\n" +
-    "Content-Type: text/html\r\n" +
-    "\r\n" +
-    "<h1>Texto de prueba</h1>";
-    byte[] datosRespuesta = Encoding.UTF8.GetBytes(respuesta);
+    /*Construir una ruta completa y segura*/
+    string rutaBase = Path.GetFullPath(carpetaArchivos);
+    string rutaCompleta = Path.GetFullPath(Path.Combine(rutaBase, ruta.TrimStart('/')));
 
-    cliente.Send(datosRespuesta);
-    cliente.Close();
+    /*Validar la ruta completa*/
+    if (!rutaCompleta.StartsWith(rutaBase))
+    {
+        string body403 = "Acceso denegado";
+
+        string respuesta =
+        "HTTP/1.1 404 Not Found\r\n" +
+        "Content-Type: text/plain\r\n" +
+        $"Content-Length: {Encoding.UTF8.GetByteCount(body403)}\r\n" +
+        "\r\n" +
+        body403;
+        
+        byte[] datosRespuesta = Encoding.UTF8.GetBytes(respuesta);
+
+        cliente.Send(datosRespuesta);
+        cliente.Close();
+
+        continue;
+    }
+
+
+    /*Guardar la ruta del archivo*/
+    string rutaArchivo = carpetaArchivos + ruta;
+    FileInfo archivo = new FileInfo(rutaArchivo);
+
+
+    /*Obtener la extension del archivo*/
+    static string ObtenerTipoMime(string rutaArchivo)
+    {
+        string extension = Path.GetExtension(rutaArchivo).ToLower();
+
+        switch(extension)
+        {
+            case ".html":
+            case ".htm":
+            return "text/html";
+
+            case ".css":
+            return "text/css";
+
+            case ".js":
+            return "application/javascript";
+
+            case ".png":
+            return "image/png";
+
+            case ".jpg":
+            case ".jpeg":
+            return "image/jpeg";
+
+            case ".gif":
+            return "image/gif";
+
+            case ".txt":
+            return "text/plain";
+
+            default:
+            return "application/octet-stream";
+        }
+    }
+
+
+    /*Enviar respuesta según si existe o no el archivo*/
+    if (archivo.Exists)
+    {
+        string extension = ObtenerTipoMime(rutaArchivo);
+
+        byte[] archivoBytes = File.ReadAllBytes(rutaArchivo);
+
+        string respuesta =
+        "HTTP/1.1 200 OK\r\n" +
+        $"Content-Type: {extension}\r\n" +
+        $"Content-Length: {archivoBytes.Length}\r\n" +
+        "\r\n";
+        
+        byte[] datosRespuesta = Encoding.UTF8.GetBytes(respuesta);
+
+        cliente.Send(datosRespuesta);
+        cliente.Send(archivoBytes);
+        cliente.Close();
+    }
+    else
+    {
+        string body404 = "Archivo no encontrado";
+
+        string respuesta =
+        "HTTP/1.1 404 Not Found\r\n" +
+        "Content-Type: text/plain\r\n" +
+        $"Content-Length: {Encoding.UTF8.GetByteCount(body404)}\r\n" +
+        "\r\n" +
+        body404;
+        
+        byte[] datosRespuesta = Encoding.UTF8.GetBytes(respuesta);
+
+        cliente.Send(datosRespuesta);
+        cliente.Close();
+    }
 
 }
