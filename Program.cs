@@ -72,6 +72,30 @@ while (true)
     string version = partesReq[2];
 
 
+    /*Loggin del POST*/
+    string body = "";
+
+    if (metodo == "POST")
+    {
+        int indiceVacio = Array.IndexOf(lineasReq, "");
+        
+        if (indiceVacio != -1 && indiceVacio + 1 < lineasReq.Length)
+        {
+            body = lineasReq[indiceVacio + 1];
+        }
+
+        Console.WriteLine("POST recibido:");
+        Console.WriteLine(body);
+    }
+
+    /*Loggin del GET*/
+    if (metodo == "GET")
+    {
+        Console.WriteLine("GET request:");
+        Console.WriteLine(ruta);
+    }
+
+
     /*Construir una ruta completa y segura*/
     string rutaBase = Path.GetFullPath(carpetaArchivos);
     string rutaCompleta = Path.GetFullPath(Path.Combine(rutaBase, ruta.TrimStart('/')));
