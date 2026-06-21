@@ -1,4 +1,5 @@
 ﻿using System.IO;
+using System.IO.Compression;
 using System.Text;
 using System.Net;
 using System.Net.Sockets;
@@ -191,6 +192,21 @@ while (true)
     }
 
 
+    /*Verificando si acepta archivos comprimidos*/
+    bool aceptaGzip = false;
+
+    foreach (string linea in lineasReq)
+    {
+        if (linea.StartsWith("Accept-Encoding:"))
+        {
+            if (linea.Contains("gzip"))
+            {
+                aceptaGzip = true;
+            }
+        }
+    }
+
+
     /*Enviar respuesta según si existe o no el archivo*/
     if (archivo.Exists)
     {
@@ -198,12 +214,32 @@ while (true)
 
         byte[] archivoBytes = File.ReadAllBytes(rutaArchivo);
 
-        string respuesta =
-        "HTTP/1.1 200 OK\r\n" +
-        $"Content-Type: {extension}\r\n" +
-        $"Content-Length: {archivoBytes.Length}\r\n" +
-        "\r\n";
+        string respuesta = "";
+
+        if(aceptaGzip)
+        {
+            MemoryStream memoria = new MemoryStream();
+            GZipStream gzip = new GZipStream(memoria, CompressionMode.Compress);
+            gzip.Write(archivoBytes, 0, archivoBytes.Length);
+            gzip.Close();
+            archivoBytes = memoria.ToArray();
+
+            string respuestaComp =
+            "HTTP/1.1 200 OK\r\n" +
+            $"Content-Type: {extension}\r\n" +
+            $"Content-Length: {archivoBytes.Length}\r\n" +
+            "Content-Encoding: gzip\r\n" +
+            "\r\n";
         
+        }
+        else
+        {
+            respuesta =
+            "HTTP/1.1 200 OK\r\n" +
+            $"Content-Type: {extension}\r\n" +
+            $"Content-Length: {archivoBytes.Length}\r\n" +
+            "\r\n";     
+        }
         byte[] datosRespuesta = Encoding.UTF8.GetBytes(respuesta);
 
         cliente.Send(datosRespuesta);
