@@ -51,6 +51,20 @@ while (true)
     Console.WriteLine("Se conectó un cliente.");
 
 
+    /*Creacion de logs diarios*/
+    IPEndPoint clienteInfo = (IPEndPoint)cliente.RemoteEndPoint!;       /*---Repasar esta linea y la de abajo---*/
+    string ipCliente = clienteInfo.Address.ToString();
+
+    if (File.Exists("DailyLogs"))
+    {
+        Console.WriteLine("Hay un archivo llamado Logs, borralo o renombralo.");
+        return;
+    }
+    Directory.CreateDirectory("DailyLogs");
+    string archivoLog = Path.Combine("DailyLogs", DateTime.Now.ToString("yyyy-MM-dd") + ".txt");
+    
+
+
     /*Creación del buffer*/
     byte[] buffer = new byte[2500];
     int bytesRecibidos = cliente.Receive(buffer);
@@ -64,6 +78,15 @@ while (true)
 
     /*Guardando datos del request*/
     string[] partesReq = primerLinea.Split(" ");
+
+    if (partesReq.Length < 3)
+    {
+        Console.WriteLine("Request inválido:");
+        Console.WriteLine(primerLinea);
+        cliente.Close();
+        continue;
+    }
+
     string metodo = partesReq[0];
     string ruta = partesReq[1];
     if (ruta == "/")
@@ -73,6 +96,13 @@ while (true)
     string version = partesReq[2];
     string queryString = "";
 
+    /*Armando el log diario*/
+    string log =
+    $"[{DateTime.Now}]\n" +
+    $"IP: {ipCliente}\n" +
+    $"Método: {metodo}\n";
+
+
     /*Separar los query param*/
     if (ruta.Contains("?"))
     {
@@ -81,9 +111,15 @@ while (true)
         queryString = partesUrl[1];
     }
 
+    log += $"Ruta: {ruta}\n";       /*Agregar ruta sin parametros al log*/
+
+
+
     /*Log de los query param*/
     if(!string.IsNullOrEmpty(queryString))
     {
+        /*Agregar los parametros al log*/
+        log += $"Params: {queryString}\n";
         string[] parametros = queryString.Split('&');
         foreach (string par in parametros)
         {
@@ -101,12 +137,13 @@ while (true)
         }
     }
 
-
     /*Loggin del POST*/
     string body = "";
 
     if (metodo == "POST")
     {
+        log += $"Body: {body}\n";   /*Agregar body al log*/
+        
         int indiceVacio = Array.IndexOf(lineasReq, "");
         
         if (indiceVacio != -1 && indiceVacio + 1 < lineasReq.Length)
@@ -124,6 +161,11 @@ while (true)
         Console.WriteLine("GET request:");
         Console.WriteLine(ruta);
     }
+
+    log += "\n------------------------------\n\n";
+
+    File.AppendAllText(archivoLog, log);
+
 
 
     /*Construir una ruta completa y segura*/
@@ -192,6 +234,7 @@ while (true)
     }
 
 
+
     /*Verificando si acepta archivos comprimidos*/
     bool aceptaGzip = false;
 
@@ -224,7 +267,7 @@ while (true)
             gzip.Close();
             archivoBytes = memoria.ToArray();
 
-            string respuestaComp =
+            respuesta =
             "HTTP/1.1 200 OK\r\n" +
             $"Content-Type: {extension}\r\n" +
             $"Content-Length: {archivoBytes.Length}\r\n" +
