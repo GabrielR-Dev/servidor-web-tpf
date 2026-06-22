@@ -4,6 +4,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.IO.Compression;
 
+object lockLog = new object();
 
 /*Lectura del config.txt*/
 string[] lineasConfig = File.ReadAllLines("config.txt");
@@ -25,6 +26,7 @@ foreach (string linea in lineasConfig)
 }
 
 
+/*Crear socket servidor*/
 var listener = new TcpListener(IPAddress.Any, puerto);
 
 listener.Start();
@@ -32,23 +34,21 @@ listener.Start();
 Console.WriteLine("El servidor está escuchando el puerto {0}", puerto);
 
 
-/*Creación de sockets para los clientes*/
+/*Crear socket cliente*/
 while (true)
 {
     Console.WriteLine("Esperando un cliente...");
     Socket cliente = listener.AcceptSocket();
     Console.WriteLine("Se conectó un cliente.");
 
-    _ = Task.Run(() => AtenderCliente(cliente, carpetaArchivos));
-
+    _ = Task.Run(() => AtenderCliente(cliente, carpetaArchivos, lockLog));
 }
 
 
-static void AtenderCliente(Socket cliente, string carpetaArchivos)
+static void AtenderCliente(Socket cliente, string carpetaArchivos, object lockLog)
 {
     try
     {
-
         string ipOrigen = ((IPEndPoint)cliente.RemoteEndPoint).Address.ToString();
 
         /*Creación del buffer*/
@@ -122,7 +122,10 @@ static void AtenderCliente(Socket cliente, string carpetaArchivos)
             DateTime.Now, ipOrigen, metodo, ruta);
 
         if (!string.IsNullOrEmpty(queryString)) entrada += " | " + queryString;
-        File.AppendAllText(archivoLog, entrada + Environment.NewLine);
+        lock(lockLog)
+        {
+           File.AppendAllText(archivoLog, entrada + Environment.NewLine);
+        }
 
 
         /*Construir una ruta completa y segura*/
@@ -196,8 +199,6 @@ static void AtenderCliente(Socket cliente, string carpetaArchivos)
         Console.WriteLine("Error: " + ex.Message);
         try { cliente.Close(); } catch { }
     }
-
-
 }
 
 /*Obtener el tipo de Mime*/
