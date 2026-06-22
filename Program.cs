@@ -4,8 +4,8 @@ using System.Net;
 using System.Net.Sockets;
 using System.IO.Compression;
 
+object lockLog = new object();
 
-/*Lectura del config.txt*/
 string[] lineasConfig = File.ReadAllLines("config.txt");
 
 int puerto = 0;
@@ -25,7 +25,7 @@ foreach (string linea in lineasConfig)
 }
 
 
-/*Creación del socket del servidor*/
+
 Socket servidor = new Socket(
     AddressFamily.InterNetwork,
     SocketType.Stream,
@@ -40,35 +40,34 @@ servidor.Listen(100);
 Console.WriteLine("El servidor está escuchando el puerto {0}", puerto);
 
 
-/*Creación de sockets para los clientes*/
+
 while (true)
 {
     Console.WriteLine("Esperando un cliente...");
     Socket cliente = servidor.Accept();
     Console.WriteLine("Se conectó un cliente.");
 
-    _ = Task.Run(() => AtenderCliente(cliente, carpetaArchivos));
+    _ = Task.Run(() => AtenderCliente(cliente, carpetaArchivos, lockLog));
 
 }
 
 
-static void AtenderCliente(Socket cliente, string carpetaArchivos)
+static void AtenderCliente(Socket cliente, string carpetaArchivos, Object lockLog)
 {
     try
     {
 
         string ipOrigen = ((IPEndPoint)cliente.RemoteEndPoint!).Address.ToString();
 
-        /*Creación del buffer*/
+
         byte[] buffer = new byte[2500];
         int bytesRecibidos = cliente.Receive(buffer);
         string request = Encoding.UTF8.GetString(buffer, 0, bytesRecibidos);
 
 
-        /*Parsear el request*/
+
         string[] lineasReq = request.Split("\r\n");
         string primerLinea = lineasReq[0];
-        /*Guardando datos del request*/
         string[] partesReq = primerLinea.Split(" ");
 
         if (partesReq.Length < 2) { cliente.Close(); return; }
@@ -80,7 +79,7 @@ static void AtenderCliente(Socket cliente, string carpetaArchivos)
 
         string queryString = "";
 
-        /*Separar los query param*/
+
         if (ruta.Contains("?"))
         {
             string[] partesUrl = ruta.Split('?', 2);
@@ -89,7 +88,7 @@ static void AtenderCliente(Socket cliente, string carpetaArchivos)
 
             queryString = partesUrl[1];
 
-            //for each para loggear los query param
+
             foreach (string par in queryString.Split('&'))
             {
                 string[] p = par.Split('=');
@@ -98,7 +97,7 @@ static void AtenderCliente(Socket cliente, string carpetaArchivos)
         }
 
 
-        /*Loggin del POST*/
+
 
         if (metodo == "POST")
         {
@@ -109,14 +108,14 @@ static void AtenderCliente(Socket cliente, string carpetaArchivos)
             }
         }
 
-        /*Loggin del GET*/
+
         if (metodo == "GET")
         {
             Console.WriteLine("GET request:");
             Console.WriteLine(ruta);
         }
 
-        // Gzip
+
         bool aceptaGzip = false;
 
         foreach (string linea in lineasReq)
@@ -132,14 +131,17 @@ static void AtenderCliente(Socket cliente, string carpetaArchivos)
             DateTime.Now, ipOrigen, metodo, ruta);
 
         if (!string.IsNullOrEmpty(queryString)) entrada += " | " + queryString;
-        File.AppendAllText(archivoLog, entrada + Environment.NewLine);
+
+        lock(lockLog)
+        {
+           File.AppendAllText(archivoLog, entrada + Environment.NewLine);
+        }
 
 
-        /*Construir una ruta completa y segura*/
         string rutaBase = Path.GetFullPath(carpetaArchivos);
         string rutaCompleta = Path.GetFullPath(Path.Combine(rutaBase, ruta.TrimStart('/')));
 
-        /*Validar la ruta completa*/
+
         if (!rutaCompleta.StartsWith(rutaBase))
         {
             string body403 = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>403 - Acceso denegado</title></head><body><h1>403</h1><p>No tenes permiso para acceder a este recurso.</p><a href='/'>Volver al inicio</a></body></html>";
@@ -153,16 +155,16 @@ static void AtenderCliente(Socket cliente, string carpetaArchivos)
         }
 
 
-        /*Guardar la ruta del archivo*/
+
         string rutaArchivo = carpetaArchivos + ruta;
         FileInfo archivo = new FileInfo(rutaArchivo);
 
 
-        /*Enviar respuesta según si existe o no el archivo*/
+
         if (archivo.Exists)
         {
             byte[] archivoBytes = File.ReadAllBytes(rutaArchivo);
-            string extension = ObtenerTipoMime(rutaArchivo);
+            string extension = ObtenerExtension(rutaArchivo);
 
             if (aceptaGzip)
             {
@@ -209,7 +211,7 @@ static void AtenderCliente(Socket cliente, string carpetaArchivos)
 
 }
 
-static string ObtenerTipoMime(string rutaArchivo)
+static string ObtenerExtension(string rutaArchivo)
 {
     string ext = Path.GetExtension(rutaArchivo).ToLower();
     switch (ext)
