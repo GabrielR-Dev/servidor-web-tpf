@@ -25,30 +25,17 @@ foreach (string linea in lineasConfig)
 }
 
 
-/*Creación del socket del servidor
-Socket servidor = new Socket(
-    AddressFamily.InterNetwork,
-    SocketType.Stream,
-    ProtocolType.Tcp
-);*/
 var listener = new TcpListener(IPAddress.Any, puerto);
 
-//IPAddress ip = IPAddress.Any;
 listener.Start();
-
-//IPEndPoint endpoint = new IPEndPoint(ip, puerto);
-
-//servidor.Bind(endpoint);
-//servidor.Listen(5);
 
 Console.WriteLine("El servidor está escuchando el puerto {0}", puerto);
 
 
-/*Creación de sockets para los clientes + Envio de respuesta*/
+/*Creación de sockets para los clientes*/
 while (true)
 {
     Console.WriteLine("Esperando un cliente...");
-    //Socket cliente = servidor.Accept();listener.AcceptSocket()
     Socket cliente = listener.AcceptSocket();
     Console.WriteLine("Se conectó un cliente.");
 
@@ -82,8 +69,6 @@ static void AtenderCliente(Socket cliente, string carpetaArchivos)
         string ruta = partesReq[1];
 
         if (ruta == "/") ruta = "/index.html";
-
-        //string version = partesReq[2];
         string queryString = "";
 
         /*Separar los query param*/
@@ -103,42 +88,15 @@ static void AtenderCliente(Socket cliente, string carpetaArchivos)
             }
         }
 
-        /*Log de los query param
-        if(!string.IsNullOrEmpty(queryString))
-        {
-            string[] parametros = queryString.Split('&');
-            foreach (string par in parametros)
-            {
-                string[] parametro = par.Split('=');
-
-                if (parametro.Length == 2)
-                {
-                    Console.WriteLine($"Parámetro: {parametro[0]} | Valor: {parametro[1]}");
-                }
-                else
-                {
-                    Console.WriteLine($"Parámetro: {parametro[0]} | Valor: ");
-                }
-
-            }
-        }*/
-
 
         /*Loggin del POST*/
-        //string body = "";
-
         if (metodo == "POST")
         {
             int indiceVacio = Array.IndexOf(lineasReq, "");
             if (indiceVacio != -1 && indiceVacio + 1 < lineasReq.Length)
             {
-                //Console.WriteLine("POST body: {0}", lineasReq[idx + 1]);
-                //body = lineasReq[indiceVacio + 1];
                 Console.WriteLine("POST body: {0}", lineasReq[indiceVacio + 1]);
             }
-
-            //Console.WriteLine("POST recibido:");
-            //Console.WriteLine(body);
         }
 
         /*Loggin del GET*/
@@ -197,15 +155,6 @@ static void AtenderCliente(Socket cliente, string carpetaArchivos)
             byte[] archivoBytes = File.ReadAllBytes(rutaArchivo);
             string extension = ObtenerTipoMime(rutaArchivo);
 
-
-            /*string respuesta =
-            "HTTP/1.1 200 OK\r\n" +
-            $"Content-Type: {extension}\r\n" +
-            $"Content-Length: {archivoBytes.Length}\r\n" +
-            "\r\n";
-            byte[] datosRespuesta = Encoding.UTF8.GetBytes(respuesta);*/
-            //cliente.Send(datosRespuesta);
-            //cliente.Send(archivoBytes);
             if (aceptaGzip)
             {
                 using (var ms = new MemoryStream())
@@ -230,31 +179,15 @@ static void AtenderCliente(Socket cliente, string carpetaArchivos)
                 cliente.Send(datosRespuesta);
                 cliente.Send(archivoBytes);
             }
-            //cliente.Close();
         }
         else
         {
-            /*string body404 = "Archivo no encontrado";
-
-            string respuesta =
-            "HTTP/1.1 404 Not Found\r\n" +
-            "Content-Type: text/plain\r\n" +
-            $"Content-Length: {Encoding.UTF8.GetByteCount(body404)}\r\n" +
-            "\r\n" +
-            body404;
-        
-            byte[] datosRespuesta = Encoding.UTF8.GetBytes(respuesta);
-
-            cliente.Send(datosRespuesta);*/
-
             string body404 = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>404 - Pagina no encontrada</title></head><body><h1>404</h1><p>La pagina que buscas no existe en este servidor.</p><a href='/'>Volver al inicio</a></body></html>";
             byte[] b = Encoding.UTF8.GetBytes(body404);
             string resp = "HTTP/1.1 404 Not Found\r\nContent-Type: text/html\r\nContent-Length: " +
                 b.Length + "\r\n\r\n";
             cliente.Send(Encoding.UTF8.GetBytes(resp));
             cliente.Send(b);
-
-            //cliente.Close();
         }
         cliente.Close();
     }
@@ -267,6 +200,7 @@ static void AtenderCliente(Socket cliente, string carpetaArchivos)
 
 }
 
+/*Obtener el tipo de Mime*/
 static string ObtenerTipoMime(string rutaArchivo)
 {
     string ext = Path.GetExtension(rutaArchivo).ToLower();
