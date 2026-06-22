@@ -175,7 +175,7 @@ static void AtenderCliente(Socket cliente, string carpetaArchivos)
         if (!rutaCompleta.StartsWith(rutaBase))
         {
             //string body403 = "Acceso denegado";
-            string body403 = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>403 - Acceso denegado</title><style>body{font-family:Arial,sans-serif;text-align:center;padding:50px;background:#f0f0f0}h1{color:#e67e22;font-size:60px;margin:0}p{color:#555;font-size:20px}a{color:#3498db;text-decoration:none}a:hover{text-decoration:underline}</style></head><body><h1>403</h1><p>No tenes permiso para acceder a este recurso.</p><a href='/'>Volver al inicio</a></body></html>";
+            string body403 = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>403 - Acceso denegado</title></head><body><h1>403</h1><p>No tenes permiso para acceder a este recurso.</p><a href='/'>Volver al inicio</a></body></html>";
             byte[] body403bytes = Encoding.UTF8.GetBytes(body403);
             string resp = "HTTP/1.1 403 Forbidden\r\nContent-Type: text/html\r\nContent-Length: " +
                 body403bytes.Length + "\r\n\r\n";
@@ -247,7 +247,7 @@ static void AtenderCliente(Socket cliente, string carpetaArchivos)
 
             cliente.Send(datosRespuesta);*/
 
-            string body404 = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>404 - Pagina no encontrada</title><style>body{font-family:Arial,sans-serif;text-align:center;padding:50px;background:#f0f0f0}h1{color:#e74c3c;font-size:60px;margin:0}p{color:#555;font-size:20px}a{color:#3498db;text-decoration:none}a:hover{text-decoration:underline}</style></head><body><h1>404</h1><p>La pagina que buscas no existe en este servidor.</p><a href='/'>Volver al inicio</a></body></html>";
+            string body404 = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>404 - Pagina no encontrada</title></head><body><h1>404</h1><p>La pagina que buscas no existe en este servidor.</p><a href='/'>Volver al inicio</a></body></html>";
             byte[] b = Encoding.UTF8.GetBytes(body404);
             string resp = "HTTP/1.1 404 Not Found\r\nContent-Type: text/html\r\nContent-Length: " +
                 b.Length + "\r\n\r\n";
